@@ -1,0 +1,99 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  phoneNumber   String    @unique
+  name          String
+  createdAt     DateTime  @default(now())
+
+  memberships     Member[]
+  paidExpenses    Expense[]     @relation("PaidBy")
+  itemShares      ExpenseItemShare[]
+  settlementsSent Settlement[] @relation("SettlementFrom")
+  settlementsGet  Settlement[] @relation("SettlementTo")
+}
+
+model Group {
+  id            String      @id @default(cuid()) 
+  name          String
+  createdAt     DateTime    @default(now())
+
+  members       Member[]
+  expenses      Expense[]
+  settlements   Settlement[]
+}
+
+model Member {
+  id            String     @id @default(cuid())
+  userId        String
+  groupId       String
+  joinedAt      DateTime   @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+}
+
+model Expense {
+  id            String      @id @default(cuid())
+  groupId       String
+  paidById      String
+  description   String
+  subtotal      Int
+  serviceCharge Int         @default(0)
+  tax           Int         @default(0)
+  rounding      Int         @default(0)
+  totalAmount   Int
+  createdAt     DateTime    @default(now())
+  
+  group     Group           @relation(fields: [groupId], references: [id])
+  paidBy    User            @relation("PaidBy", fields: [paidById], references: [id])
+  items     ExpenseItem[]
+}
+
+model ExpenseItem {
+  id            String         @id @default(cuid())
+  expenseId     String
+  itemName      String
+  price         Int
+
+  expense     Expense     @relation(fields: [expenseId], references: [id])
+  shares      ExpenseItemShare[]
+}
+
+model ExpenseItemShare {
+  id            String         @id @default(cuid())
+  itemId        String
+  userId        String
+  amount        Int
+
+  item  ExpenseItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user  User           @relation(fields: [userId], references: [id])
+  
+  @@unique([itemId, userId])
+}
+
+model Settlement {
+  id            String        @id @default(cuid())
+  groupId       String
+  fromUserId    String
+  toUserId      String
+  amount        Int
+  settledAt     DateTime      @default(now())
+
+  group     Group   @relation(fields: [groupId], references: [id])
+  fromUser  User    @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  toUser    User    @relation("SettlementTo", fields: [toUserId], references: [id])
+}
